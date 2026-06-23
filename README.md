@@ -137,6 +137,19 @@ splits (download the matching `*.json`, e.g. `fog.json`) become the OOD axis for
 O2-KR3. Open-ended perception/prediction/planning answers need a BLEU/GPT-score
 judge for automatic correctness — eyeball them for now.
 
+## Tests
+
+Fast, deterministic unit tests (no VLM calls / no quota) covering the pieces
+where a silent bug would corrupt the headline numbers — parsing, calibration
+metrics, and the scorer:
+
+```bash
+python3 -m pytest tests/ -q
+```
+
+VLM output *quality* is deliberately not unit-tested (it's a research finding,
+seen via the metrics + eyeballing), so the suite stays quota-free and stable.
+
 ## Config files
 
 Both `curate.py` and `infer.py` accept `--config <yaml>`; CLI flags override
