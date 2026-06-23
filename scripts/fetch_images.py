@@ -31,11 +31,13 @@ ZIP_URL = ("https://huggingface.co/datasets/OpenDriveLab/DriveLM/resolve/main/"
 
 
 def needed_images(qa_file, n_frames):
-    """Return {basename: arena_relpath} for the first n_frames distinct frames."""
+    """Images for the first `n_frames` distinct frames (a ceiling — fewer if the
+    file has fewer). Returns (basename->relpath, n_selected, n_available)."""
     data = json.load(open(qa_file))
-    wanted, seen_frames = {}, []
+    wanted, seen_frames, all_frames = {}, [], set()
     for rec in data:
         ft = rec.get("frame_token")
+        all_frames.add(ft)
         if ft not in seen_frames:
             if len(seen_frames) >= n_frames:
                 continue
@@ -43,7 +45,7 @@ def needed_images(qa_file, n_frames):
         if ft in seen_frames:
             for _cam, relpath in (rec.get("image_path") or {}).items():
                 wanted[os.path.basename(relpath)] = relpath
-    return wanted
+    return wanted, len(seen_frames), len(all_frames)
 
 
 def signed_url(token, split):
@@ -138,8 +140,11 @@ def main():
     if not token:
         sys.exit("Set HF_TOKEN (https://huggingface.co/settings/tokens) after accepting the DriveLM gate.")
 
-    wanted = needed_images(args.qa_file, args.frames)
-    print("Subset needs {} images across {} frames".format(len(wanted), args.frames))
+    wanted, n_frames, n_available = needed_images(args.qa_file, args.frames)
+    if args.frames > n_available:
+        print("Note: requested {} frames, but only {} exist in the QA file."
+              .format(args.frames, n_available))
+    print("Subset needs {} images across {} frames".format(len(wanted), n_frames))
 
     import requests
 
