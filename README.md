@@ -157,7 +157,7 @@ python3 scripts/curate.py --config configs/datasets/drivebench.yaml --per-task 5
 | Schema | `Sample`, `Prediction` (Pydantic) — the contract everything shares |
 | Curation | `DatasetAdapter` ABC + registry, **DriveBench** adapter, nuScenes sensor-path linking, task-stratified sampling |
 | Inference | `VLMClient` ABC, **Gemini** + **mock** backends, async runner (bounded concurrency, resume, error capture) |
-| Strategies | `direct`, `verbal_confidence`, `consistency` (self-consistency agreement) |
+| Strategies | `direct`, `verbal_confidence`, `consistency` (self-consistency), `self_reflection` (2-turn critique+revise), `abstention` ("I cannot determine"), `vl_uncertainty` (visual-perturbation semantic entropy, arXiv 2411.11919) |
 | Eval | accuracy, ECE, AUROC — overall and per `task_type` |
 
 ## Extending
