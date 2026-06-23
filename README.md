@@ -158,7 +158,7 @@ python3 scripts/curate.py --config configs/datasets/drivebench.yaml --per-task 5
 | Curation | `DatasetAdapter` ABC + registry, **DriveBench** adapter, nuScenes sensor-path linking, task-stratified sampling |
 | Inference | `VLMClient` ABC, **Gemini** + **mock** backends, async runner (bounded concurrency, resume, error capture) |
 | Strategies | `direct`, `verbal_confidence`, `consistency` (self-consistency), `self_reflection` (2-turn critique+revise), `abstention` ("I cannot determine"), `vl_uncertainty` (visual-perturbation semantic entropy, arXiv 2411.11919) |
-| Eval | accuracy, ECE, AUROC — overall and per `task_type` |
+| Eval | accuracy, ECE, AUROC — overall and per `task_type`; pluggable correctness scorers (`exact`, deterministic `structured`) with a human-free synthetic-control validation harness (`scripts/validate_scorer.py`) |
 
 ## Extending
 
@@ -172,8 +172,12 @@ python3 scripts/curate.py --config configs/datasets/drivebench.yaml --per-task 5
 
 ## Status / known gaps
 
-- MCQ correctness is exact-match. Open-ended QA/CAP need BLEU / GPT-score scorers
-  (deliberately deferred — that's why we lead with MCQ).
+- Open-ended correctness uses a deterministic, reference-grounded `structured`
+  scorer (set-F1 over content tokens, MCQ exact-match). It's conservative — strong
+  on clear right/wrong but weak on subtle single-word corruptions (token overlap
+  stays high). Validate/inspect with `scripts/validate_scorer.py`; the next layer
+  (NLI claim-entailment, then a confidence-blind cross-family LLM judge) plugs in
+  behind the same `Scorer` interface (`src/avbench/eval/scorer.py`).
 - Token-probability confidence depends on backend logprob support.
 - The bundled fixture is synthetic (solid-color images, toy MCQs) purely to
   exercise the pipeline — not real driving data.

@@ -15,7 +15,8 @@ from collections import defaultdict
 
 import _bootstrap  # noqa: F401
 
-from avbench.eval.metrics import accuracy, auroc, exact_match, expected_calibration_error
+from avbench.eval.metrics import accuracy, auroc, expected_calibration_error
+from avbench.eval.scorer import get_scorer
 from avbench.io_utils import read_jsonl
 
 
@@ -24,7 +25,13 @@ def main() -> None:
     ap.add_argument("--curated", required=True)
     ap.add_argument("--pred", required=True)
     ap.add_argument("--bins", type=int, default=10)
+    ap.add_argument("--scorer", default="exact",
+                    help="correctness scorer: exact | structured (for open-ended)")
+    ap.add_argument("--threshold", type=float, default=0.5, help="structured-scorer cutoff")
     args = ap.parse_args()
+
+    kw = {"threshold": args.threshold} if args.scorer == "structured" else {}
+    scorer = get_scorer(args.scorer, **kw)
 
     gold = {r["sample_id"]: r for r in read_jsonl(args.curated)}
     rows = []  # (task_type, correct, confidence)
@@ -41,7 +48,7 @@ def main() -> None:
         if conf is None:
             n_missing_conf += 1
             continue
-        correct = exact_match(p.get("answer"), g["answer"])
+        correct = scorer.is_correct(p.get("answer"), g["answer"], g)
         rows.append((g["task_type"], correct, float(conf)))
 
     if not rows:
