@@ -1,0 +1,290 @@
+[
+  {
+    "id": "sample_000",
+    "task": "perception",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 0, what is the moving status of <c1,CAM_FRONT,100,90>?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "A",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_000"
+  },
+  {
+    "id": "sample_001",
+    "task": "prediction",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 1, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "B",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_001"
+  },
+  {
+    "id": "sample_002",
+    "task": "planning",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 2, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "C",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_002"
+  },
+  {
+    "id": "sample_003",
+    "task": "behavior",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 3, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "D",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_003"
+  },
+  {
+    "id": "sample_004",
+    "task": "perception",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 4, what is the moving status of <c1,CAM_FRONT,128,90>?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "A",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_004"
+  },
+  {
+    "id": "sample_005",
+    "task": "prediction",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 5, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "B",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_005"
+  },
+  {
+    "id": "sample_006",
+    "task": "planning",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 6, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "C",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_006"
+  },
+  {
+    "id": "sample_007",
+    "task": "behavior",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 7, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "D",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_007"
+  },
+  {
+    "id": "sample_008",
+    "task": "perception",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 8, what is the moving status of <c1,CAM_FRONT,156,90>?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "A",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_008"
+  },
+  {
+    "id": "sample_009",
+    "task": "prediction",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 9, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "B",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_009"
+  },
+  {
+    "id": "sample_010",
+    "task": "planning",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 10, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "C",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_010"
+  },
+  {
+    "id": "sample_011",
+    "task": "behavior",
+    "format": "mcq",
+    "split": "clean",
+    "question": "In scene 11, based on the scene, what should the ego vehicle do next?",
+    "options": [
+      "Keep going at the same speed",
+      "Decelerate",
+      "Turn left",
+      "Stop"
+    ],
+    "answer": "D",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    },
+    "scene_token": "scene_011"
+  },
+  {
+    "id": "corrupt_000",
+    "task": "perception",
+    "format": "mcq",
+    "split": "fog",
+    "question": "Toy corrupted question?",
+    "options": [
+      "A thing",
+      "Another"
+    ],
+    "answer": "A",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    }
+  },
+  {
+    "id": "corrupt_001",
+    "task": "perception",
+    "format": "mcq",
+    "split": "fog",
+    "question": "Toy corrupted question?",
+    "options": [
+      "A thing",
+      "Another"
+    ],
+    "answer": "A",
+    "images": {
+      "CAM_FRONT": "images/CAM_FRONT.jpg",
+      "CAM_FRONT_LEFT": "images/CAM_FRONT_LEFT.jpg",
+      "CAM_FRONT_RIGHT": "images/CAM_FRONT_RIGHT.jpg",
+      "CAM_BACK": "images/CAM_BACK.jpg"
+    }
+  }
+]

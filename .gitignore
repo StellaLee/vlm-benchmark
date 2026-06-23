@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+data/raw/
+data/curated/
+runs/
+*.egg-info/
+.venv/
+
+# Local-only / not for publication
+.claude/
+docs/

@@ -1,0 +1,13 @@
+# Core
+pydantic>=2.0
+pyyaml>=6.0
+
+# Inference backend (Gemini / Google AI Studio free tier)
+google-genai>=1.0
+
+# Curation / images
+pillow>=10.0
+
+# Eval
+numpy>=1.24
+scikit-learn>=1.3
