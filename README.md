@@ -137,6 +137,19 @@ splits (download the matching `*.json`, e.g. `fog.json`) become the OOD axis for
 O2-KR3. Open-ended perception/prediction/planning answers need a BLEU/GPT-score
 judge for automatic correctness — eyeball them for now.
 
+## Config files
+
+Both `curate.py` and `infer.py` accept `--config <yaml>`; CLI flags override
+config values, which override built-in defaults. The canonical setups live in
+`configs/`:
+
+```bash
+python3 scripts/curate.py --config configs/datasets/drivebench.yaml
+python3 scripts/infer.py  --config configs/runs/gemini_verbal_conf.yaml
+# override anything ad hoc:
+python3 scripts/curate.py --config configs/datasets/drivebench.yaml --per-task 5
+```
+
 ## What's implemented
 
 | Layer | Pieces |

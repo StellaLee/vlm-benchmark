@@ -1,9 +1,10 @@
-# DriveBench curation config (clean split, MCQ first).
-# Point qa_file/data_root at your downloaded DriveBench release.
+# DriveBench curation config. Consumed by: scripts/curate.py --config <this file>
+# CLI flags override any value here.
 dataset: drivebench
-qa_file: data/raw/drivebench/drivebench.json
-data_root: data/raw/drivebench
-split: clean          # 'clean' | a corruption name | 'all'
-formats: [mcq]        # add qa / cap once MCQ calibration is validated
-per_task: 100         # balance perception/prediction/planning/behavior
-out: data/curated/drive_v1.jsonl
+qa_file: data/raw/drivebench/drivebench-test.json   # clean split (HF drive-bench/arena)
+data_root: data/raw/drivebench                       # where fetch_images.py writes
+split: clean            # 'clean' | a corruption name | 'all'
+formats: null           # null = keep all (arena is open-ended qa + mcq behavior)
+per_task: 10            # balance perception/prediction/planning/behavior
+require_images: true    # drop QA whose images aren't present locally
+out: data/curated/drivebench_real.jsonl
