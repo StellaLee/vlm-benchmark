@@ -10,4 +10,5 @@ runs/
 
 # Local-only / not for publication
 .claude/
+.vscode/
 docs/
