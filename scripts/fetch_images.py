@@ -129,7 +129,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--qa-file", required=True)
     ap.add_argument("--frames", type=int, default=15, help="Distinct keyframes to fetch")
-    ap.add_argument("--split", default="val", choices=["val", "train"])
+    ap.add_argument("--split", default="train", choices=["train", "val"],
+                    help="DriveBench arena frames are in the DriveLM train split")
     ap.add_argument("--out-root", default="data/raw/drivebench")
     args = ap.parse_args()
 
