@@ -6,6 +6,7 @@ sample_ids already present, so an interrupted job resumes cheaply.
 """
 
 import asyncio
+import os
 import sys
 from typing import List
 
@@ -23,7 +24,13 @@ async def run_inference(
     concurrency: int = 4,
     resume: bool = True,
 ) -> int:
-    done = load_completed_ids(out_path) if resume else set()
+    if resume:
+        done = load_completed_ids(out_path)
+    else:
+        # Fresh run: clear any prior output so we don't append to stale records.
+        if os.path.exists(out_path):
+            os.remove(out_path)
+        done = set()
     todo = [s for s in samples if s.sample_id not in done]
     if done:
         print("Resuming: {} done, {} to go".format(len(done), len(todo)), file=sys.stderr)
