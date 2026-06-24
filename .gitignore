@@ -4,6 +4,7 @@ __pycache__/
 .env
 data/raw/
 data/curated/
+data/cache/
 runs/
 *.egg-info/
 .venv/

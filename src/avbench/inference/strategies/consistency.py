@@ -28,8 +28,9 @@ class Consistency(PromptStrategy):
         return "{}\n\n{}\nAnswer:".format(render_question(sample), how)
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
+        imgs = self.images_for(sample)
         results = await client.generate(
-            self.build_prompt(sample), sample.images, n=self.k, temperature=self.temperature
+            self.build_prompt(sample), imgs, n=self.k, temperature=self.temperature
         )
         answers = [extract_answer(r.text, sample) for r in results]
         counts = Counter(a for a in answers if a)
@@ -49,4 +50,5 @@ class Consistency(PromptStrategy):
             abstained=bool(results) and is_abstention(results[0].text),
             usage={"k": self.k, "temperature": self.temperature,
                    "backend": results[0].usage.get("backend") if results else None},
+            condition=self.condition(),
         )

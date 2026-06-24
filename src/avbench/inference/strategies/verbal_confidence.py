@@ -32,7 +32,8 @@ class VerbalConfidence(PromptStrategy):
         return _TEMPLATE.format(body=render_question(sample), how_to_answer=how)
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
-        res = (await client.generate(self.build_prompt(sample), sample.images, n=1))[0]
+        imgs = self.images_for(sample)
+        res = (await client.generate(self.build_prompt(sample), imgs, n=1))[0]
         return Prediction(
             sample_id=sample.sample_id,
             model=client.model,
@@ -43,4 +44,5 @@ class VerbalConfidence(PromptStrategy):
             token_logprob=res.avg_logprob,
             abstained=is_abstention(res.text),
             usage=res.usage,
+            condition=self.condition(),
         )

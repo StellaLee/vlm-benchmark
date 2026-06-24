@@ -35,6 +35,7 @@ DEFAULTS = {
     "limit": None,
     "task": None,
     "resume": True,
+    "marker_grounding": False,  # draw a marker at <c,CAM,x,y> object refs
 }
 
 
@@ -62,6 +63,8 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--task", default=None, help="Filter to one task_type")
     ap.add_argument("--no-resume", dest="resume", action="store_false", default=None)
+    ap.add_argument("--marker-grounding", dest="marker_grounding", action="store_true", default=None,
+                    help="Draw a marker at each <c,CAM,x,y> object ref (removes the localization confound)")
     args = ap.parse_args()
 
     apply_config(args, load_config(args.config), DEFAULTS)
@@ -80,6 +83,7 @@ def main() -> None:
         print("error: {}".format(e), file=sys.stderr)
         raise SystemExit(1)
     strategy = get_strategy(args.strategy)()
+    strategy.marker_grounding = bool(args.marker_grounding)
 
     ok = asyncio.run(
         run_inference(

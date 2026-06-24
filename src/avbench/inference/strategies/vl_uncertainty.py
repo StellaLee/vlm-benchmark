@@ -66,9 +66,10 @@ class VLUncertainty(PromptStrategy):
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         prompt = self.build_prompt(sample)
+        base_imgs = self.images_for(sample)
         tmpdir = tempfile.mkdtemp(prefix="vlu_")
         try:
-            variants = [self._blur(sample.images, r, tmpdir) for r in self.blur_radii]
+            variants = [self._blur(base_imgs, r, tmpdir) for r in self.blur_radii]
             results = await asyncio.gather(*[
                 client.generate(prompt, imgs, n=1, temperature=self.temperature)
                 for imgs in variants
@@ -103,4 +104,5 @@ class VLUncertainty(PromptStrategy):
             usage={"blur_radii": self.blur_radii, "n_perturb": len(self.blur_radii),
                    "semantic_entropy": round(entropy, 4) if entropy is not None else None,
                    "backend": results[0][0].usage.get("backend") if results else None},
+            condition=self.condition(),
         )

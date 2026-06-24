@@ -28,6 +28,8 @@ def main() -> None:
     ap.add_argument("--scorer", default="exact",
                     help="correctness scorer: exact | structured (for open-ended)")
     ap.add_argument("--threshold", type=float, default=0.5, help="structured-scorer cutoff")
+    ap.add_argument("--by", default="task",
+                    help="stratify by: task | a condition key (e.g. marker_grounding)")
     args = ap.parse_args()
 
     kw = {"threshold": args.threshold} if args.scorer == "structured" else {}
@@ -49,7 +51,11 @@ def main() -> None:
             n_missing_conf += 1
             continue
         correct = scorer.is_correct(p.get("answer"), g["answer"], g)
-        rows.append((g["task_type"], correct, float(conf)))
+        if args.by == "task":
+            group = g["task_type"]
+        else:
+            group = str((p.get("condition") or {}).get(args.by, "?"))
+        rows.append((group, correct, float(conf)))
 
     if not rows:
         print("No scorable rows (errors={}, missing-confidence={}).".format(n_err, n_missing_conf))
@@ -63,7 +69,7 @@ def main() -> None:
         allc.append(c)
         allf.append(f)
 
-    print("\n{:<14} {:>6} {:>8} {:>8} {:>8}".format("task", "n", "acc", "ECE", "AUROC"))
+    print("\n{:<14} {:>6} {:>8} {:>8} {:>8}".format(args.by, "n", "acc", "ECE", "AUROC"))
     print("-" * 48)
     for task in sorted(by_task):
         c, f = by_task[task]

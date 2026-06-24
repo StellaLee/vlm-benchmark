@@ -57,9 +57,10 @@ class SelfReflection(PromptStrategy):
         )
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
-        first = (await client.generate(self.build_prompt(sample), sample.images, n=1))[0]
+        imgs = self.images_for(sample)
+        first = (await client.generate(self.build_prompt(sample), imgs, n=1))[0]
         reflect = self._reflect_prompt(sample, first.text)
-        final = (await client.generate(reflect, sample.images, n=1))[0]
+        final = (await client.generate(reflect, imgs, n=1))[0]
         return Prediction(
             sample_id=sample.sample_id,
             model=client.model,
@@ -70,6 +71,7 @@ class SelfReflection(PromptStrategy):
             abstained=is_abstention(final.text),
             samples=[first.text, final.text],  # turn-1 and turn-2 transcripts
             usage={"calls": 2, "backend": final.usage.get("backend")},
+            condition=self.condition(),
         )
 
 
@@ -86,7 +88,8 @@ class Abstention(PromptStrategy):
         ).format(body=render_question(sample), abstain=_ABSTAIN_OPTION, how=how, fmt=_ANSWER_FORMAT)
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
-        res = (await client.generate(self.build_prompt(sample), sample.images, n=1))[0]
+        imgs = self.images_for(sample)
+        res = (await client.generate(self.build_prompt(sample), imgs, n=1))[0]
         return Prediction(
             sample_id=sample.sample_id,
             model=client.model,
@@ -96,4 +99,5 @@ class Abstention(PromptStrategy):
             verbal_confidence=extract_confidence(res.text),
             abstained=is_abstention(res.text),
             usage=res.usage,
+            condition=self.condition(),
         )

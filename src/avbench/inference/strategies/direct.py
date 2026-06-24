@@ -21,7 +21,8 @@ class DirectAnswer(PromptStrategy):
         return "{}\n\n{}\nAnswer:".format(render_question(sample), instruction)
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
-        res = (await client.generate(self.build_prompt(sample), sample.images, n=1))[0]
+        imgs = self.images_for(sample)
+        res = (await client.generate(self.build_prompt(sample), imgs, n=1))[0]
         token_conf = None
         if res.avg_logprob is not None:
             token_conf = math.exp(res.avg_logprob)  # mean-token prob proxy
@@ -35,4 +36,5 @@ class DirectAnswer(PromptStrategy):
             verbal_confidence=token_conf,
             abstained=is_abstention(res.text),
             usage=res.usage,
+            condition=self.condition(),
         )

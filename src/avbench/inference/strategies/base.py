@@ -6,14 +6,17 @@ parsed answer and whatever confidence signal it elicited.
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Type
 
 from avbench.inference.client import VLMClient
-from avbench.schema import PromptFormat, Prediction, Sample
+from avbench.schema import ImageRef, PromptFormat, Prediction, Sample
 
 
 class PromptStrategy(ABC):
     name: str
+    # Run-level option, set by infer.py per run. (Abstention is a prompt
+    # formulation, so it's a strategy, not a flag; markers modify the image.)
+    marker_grounding: bool = False
 
     @abstractmethod
     def build_prompt(self, sample: Sample) -> str:
@@ -22,6 +25,21 @@ class PromptStrategy(ABC):
     @abstractmethod
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         ...
+
+    # --- shared plumbing for the run-level options -------------------------
+    def images_for(self, sample: Sample) -> List[ImageRef]:
+        """sample.images, optionally with a marker drawn at each object_ref's
+        (camera, x, y) when --marker-grounding is set."""
+        if self.marker_grounding and sample.object_refs:
+            from avbench.inference.grounding import render_markers
+
+            return render_markers(sample)
+        return sample.images
+
+    def condition(self) -> Dict[str, Any]:
+        """The active ablation condition, recorded on the Prediction so
+        evaluate.py can stratify metrics by it."""
+        return {"marker_grounding": bool(self.marker_grounding)}
 
 
 def render_question(sample: Sample) -> str:

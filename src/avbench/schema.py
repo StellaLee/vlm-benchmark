@@ -63,4 +63,5 @@ class Prediction(BaseModel):
     samples: List[str] = Field(default_factory=list)  # consistency runs
     abstained: bool = False
     usage: Dict[str, Any] = Field(default_factory=dict)  # tokens, latency, cost
+    condition: Dict[str, Any] = Field(default_factory=dict)  # ablation flags active
     error: Optional[str] = None  # populated if the call failed

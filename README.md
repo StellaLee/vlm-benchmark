@@ -163,6 +163,30 @@ python3 scripts/infer.py  --config configs/runs/gemini_verbal_conf.yaml
 python3 scripts/curate.py --config configs/datasets/drivebench.yaml --per-task 5
 ```
 
+## Ablation conditions
+
+Marker grounding probes *how the input formulation moves calibration*, not just
+accuracy. It's logged in `Prediction.condition`, so `evaluate.py --by <key>`
+slices metrics by it.
+
+```bash
+# Mark the <c,CAM,x,y> object location on the image (removes the localization
+# confound: a wrong answer afterwards is reasoning, not failure to find the object)
+python3 scripts/infer.py --config configs/runs/gemini_verbal_conf.yaml --marker-grounding
+
+# compare conditions:
+python3 scripts/evaluate.py --curated ... --pred ... --by marker_grounding
+```
+
+**Abstention** is *not* a flag — it's prompt formulation, so it lives in the
+strategy layer: run `--strategy abstention` (or `self_reflection`) to let the
+model decline ("I cannot determine ..."), comparing against a non-abstaining
+strategy like `verbal_confidence`.
+
+Temporal context (prior frames for motion/speed questions) is a planned follow-up
+— it needs adjacent nuScenes frames pulled via the devkit, since the DriveBench
+arena split is temporally sparse (see TODO).
+
 ## What's implemented
 
 | Layer | Pieces |
