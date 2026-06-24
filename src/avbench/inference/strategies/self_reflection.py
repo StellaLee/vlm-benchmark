@@ -13,7 +13,8 @@ and recorded on the Prediction. self_reflection costs 2 API calls per sample.
 
 from avbench.inference.client import VLMClient
 from avbench.inference.parsing import extract_answer, extract_confidence, is_abstention
-from avbench.inference.strategies.base import PromptStrategy, register, render_question
+from avbench.inference.strategies.base import (
+    PromptStrategy, answer_instruction, register, render_question)
 from avbench.schema import Prediction, Sample
 
 _ABSTAIN_OPTION = (
@@ -44,9 +45,7 @@ _REFLECT_TEMPLATE = (
 class SelfReflection(PromptStrategy):
     def build_prompt(self, sample: Sample) -> str:
         # Turn 1: a plain answer we will later ask the model to reflect on.
-        how = ("Answer with the single best option letter." if sample.options
-               else "Answer concisely.")
-        return "{}\n\n{}\nAnswer:".format(render_question(sample), how)
+        return "{}\n\n{}\nAnswer:".format(render_question(sample), answer_instruction(sample))
 
     def _reflect_prompt(self, sample: Sample, first_text: str) -> str:
         return _REFLECT_TEMPLATE.format(
@@ -78,14 +77,13 @@ class SelfReflection(PromptStrategy):
 @register("abstention")
 class Abstention(PromptStrategy):
     def build_prompt(self, sample: Sample) -> str:
-        how = ("Choose the single best option and give its letter." if sample.options
-               else "Give a concise answer.")
         return (
             "{body}\n\n"
             "Before answering, assess whether the images give you enough "
             "information to answer confidently. {abstain}\n"
             "Otherwise, {how}\n\n{fmt}"
-        ).format(body=render_question(sample), abstain=_ABSTAIN_OPTION, how=how, fmt=_ANSWER_FORMAT)
+        ).format(body=render_question(sample), abstain=_ABSTAIN_OPTION,
+                 how=answer_instruction(sample), fmt=_ANSWER_FORMAT)
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         imgs = self.images_for(sample)

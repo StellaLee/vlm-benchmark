@@ -29,7 +29,8 @@ from typing import List
 
 from avbench.inference.client import VLMClient
 from avbench.inference.parsing import extract_answer, is_abstention
-from avbench.inference.strategies.base import PromptStrategy, register, render_question
+from avbench.inference.strategies.base import (
+    PromptStrategy, answer_instruction, register, render_question)
 from avbench.schema import ImageRef, Prediction, Sample
 
 
@@ -44,9 +45,7 @@ class VLUncertainty(PromptStrategy):
         self.temperature = temperature
 
     def build_prompt(self, sample: Sample) -> str:
-        how = ("Answer with the single best option letter." if sample.options
-               else "Answer concisely.")
-        return "{}\n\n{}\nAnswer:".format(render_question(sample), how)
+        return "{}\n\n{}\nAnswer:".format(render_question(sample), answer_instruction(sample))
 
     def _blur(self, images: List[ImageRef], radius: float, tmpdir: str) -> List[ImageRef]:
         if radius <= 0:

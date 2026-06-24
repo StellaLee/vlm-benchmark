@@ -7,7 +7,8 @@ token logprobs.
 
 from avbench.inference.client import VLMClient
 from avbench.inference.parsing import extract_answer, extract_confidence, is_abstention
-from avbench.inference.strategies.base import PromptStrategy, register, render_question
+from avbench.inference.strategies.base import (
+    PromptStrategy, answer_instruction, register, render_question)
 from avbench.schema import Prediction, Sample
 
 _TEMPLATE = (
@@ -24,12 +25,7 @@ _TEMPLATE = (
 @register("verbal_confidence")
 class VerbalConfidence(PromptStrategy):
     def build_prompt(self, sample: Sample) -> str:
-        how = (
-            "Choose the single best option and give its letter."
-            if sample.options
-            else "Give a concise answer."
-        )
-        return _TEMPLATE.format(body=render_question(sample), how_to_answer=how)
+        return _TEMPLATE.format(body=render_question(sample), how_to_answer=answer_instruction(sample))
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         imgs = self.images_for(sample)

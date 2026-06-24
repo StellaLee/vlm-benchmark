@@ -7,8 +7,15 @@ evaluate.py stratifies on."""
 from PIL import Image
 
 from avbench.inference.grounding import parse_refs, render_markers
+from avbench.inference.strategies.base import answer_instruction, is_yes_no_question
 from avbench.inference.strategies.direct import DirectAnswer
 from avbench.schema import ImageRef, PromptFormat, Sample, TaskType
+
+
+def _q(question, options=None):
+    return Sample(sample_id="d/x", dataset="d", task_type=TaskType.PERCEPTION,
+                  prompt_format=PromptFormat.MCQ if options else PromptFormat.QA,
+                  question=question, answer="a", images=[], options=options)
 
 
 def _img(path, w=64, h=48, color=(10, 20, 30)):
@@ -47,3 +54,16 @@ def test_condition_records_marker_flag():
     assert strat.condition() == {"marker_grounding": False}
     strat.marker_grounding = True
     assert strat.condition() == {"marker_grounding": True}
+
+
+def test_yes_no_question_detection():
+    assert is_yes_no_question("Is <c1,CAM_BACK,0.5,0.5> a traffic sign or a road barrier?")
+    assert not is_yes_no_question("What is the moving status of <c1,CAM_BACK,0.5,0.5>?")
+    assert not is_yes_no_question("What are the important objects in the scene?")
+
+
+def test_answer_instruction_by_question_type():
+    yn = _q("Is <c1,CAM_BACK,0.5,0.5> a traffic sign or a road barrier?")
+    assert answer_instruction(yn) == "Answer Yes or No."
+    assert answer_instruction(_q("What is X?")) == "Give a concise answer."
+    assert "letter" in answer_instruction(_q("Pick one", options=["A", "B"]))

@@ -5,11 +5,19 @@ prompt from a `Sample`, calls the `VLMClient`, and returns a `Prediction` with t
 parsed answer and whatever confidence signal it elicited.
 """
 
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Type
 
 from avbench.inference.client import VLMClient
 from avbench.schema import ImageRef, PromptFormat, Prediction, Sample
+
+# DriveLM identification questions ("Is <c1,CAM_BACK,0.54,0.48> a traffic sign or
+# a road barrier?") are polar yes/no despite the "a A or a B?" surface form — the
+# gold is Yes/No, not one of the two nouns. The phrasing misleads models into
+# answering with a noun, so we detect them and tell the model the answer space.
+# Match the structural form (Is <obj> a/an ... or a/an ...?), not a loose " or ".
+_YESNO_Q = re.compile(r"^\s*Is\s+<c\d+[^>]*>\s+an?\b.*\bor\s+an?\b.*\?\s*$", re.IGNORECASE)
 
 
 class PromptStrategy(ABC):
@@ -40,6 +48,19 @@ class PromptStrategy(ABC):
         """The active ablation condition, recorded on the Prediction so
         evaluate.py can stratify metrics by it."""
         return {"marker_grounding": bool(self.marker_grounding)}
+
+
+def is_yes_no_question(question: str) -> bool:
+    return bool(_YESNO_Q.match(question or ""))
+
+
+def answer_instruction(sample: Sample) -> str:
+    """How the model should shape its answer, given the question type."""
+    if sample.options:
+        return "Choose the single best option and give its letter."
+    if is_yes_no_question(sample.question):
+        return "Answer Yes or No."
+    return "Give a concise answer."
 
 
 def render_question(sample: Sample) -> str:
