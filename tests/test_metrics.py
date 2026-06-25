@@ -3,7 +3,16 @@ the right answer is obvious, so a miscomputation can't slip into a draft."""
 
 import math
 
-from avbench.eval.metrics import accuracy, auroc, exact_match, expected_calibration_error
+from avbench.eval.metrics import (
+    accuracy,
+    auroc,
+    balanced_accuracy,
+    confusion_matrix,
+    exact_match,
+    expected_calibration_error,
+    precision_per_class,
+    recall_per_class,
+)
 
 
 def test_accuracy():
@@ -45,3 +54,34 @@ def test_auroc_perfect_and_reversed():
 def test_auroc_undefined_when_single_class():
     # No incorrect answers -> AUROC undefined -> NaN, not a crash.
     assert math.isnan(auroc([1, 1, 1], [0.9, 0.5, 0.7]))
+
+
+# --- discrimination metrics ---------------------------------------------------
+# The yes/no base-rate trap: 9 "no" + 6 "yes" gold, a model that always says "no".
+_GOLD = ["no"] * 9 + ["yes"] * 6
+_CONST_NO = ["no"] * 15
+
+
+def test_confusion_matrix_counts():
+    labels, m = confusion_matrix(_GOLD, _CONST_NO, labels=["no", "yes"])
+    assert labels == ["no", "yes"]
+    # rows=gold, cols=pred: all 9 no->no, all 6 yes->no, nothing predicted yes.
+    assert m == [[9, 0], [6, 0]]
+
+
+def test_recall_exposes_zero_positive_class():
+    rec = recall_per_class(_GOLD, _CONST_NO, labels=["no", "yes"])
+    assert rec["no"] == 1.0      # every "no" caught
+    assert rec["yes"] == 0.0     # zero positive-class recall, hidden by raw accuracy
+
+
+def test_balanced_accuracy_defeats_base_rate_trap():
+    # Raw accuracy of constant-"no" = 9/15 = 0.6; balanced accuracy = mean(1.0, 0.0).
+    assert accuracy([1] * 9 + [0] * 6) == 0.6
+    assert balanced_accuracy(_GOLD, _CONST_NO, labels=["no", "yes"]) == 0.5
+
+
+def test_precision_nan_for_never_predicted_class():
+    prec = precision_per_class(_GOLD, _CONST_NO, labels=["no", "yes"])
+    assert prec["no"] == 9 / 15
+    assert math.isnan(prec["yes"])  # "yes" never predicted -> precision undefined

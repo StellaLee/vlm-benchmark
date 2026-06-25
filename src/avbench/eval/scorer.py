@@ -65,6 +65,20 @@ def _looks_like_mcq(gold: str) -> bool:
     return bool(re.fullmatch(r"[A-E]", (gold or "").strip(), re.IGNORECASE))
 
 
+def answer_label(text: str, gold: str) -> str:
+    """Canonical categorical label for confusion/recall (not correctness scoring).
+
+    MCQ (gold is a single letter) -> the option letter; otherwise the normalized
+    string. Used to bucket yes/no and MCQ answers into classes; for open-ended text
+    it just returns the normalized string (so the label space is large and callers
+    should skip discrimination). `gold` decides MCQ-ness so pred and gold map the
+    same way."""
+    if _looks_like_mcq(gold):
+        m = _LETTER.search(text or "")
+        return m.group(1).upper() if m else normalize(text)
+    return normalize(text)
+
+
 def set_f1(pred: set, gold: set) -> float:
     if not gold and not pred:
         return 1.0

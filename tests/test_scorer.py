@@ -3,7 +3,22 @@ against. These tests pin the two behaviors that matter: MCQ exactness, and that
 `structured` credits paraphrases `exact` would reject without crediting genuinely
 wrong answers."""
 
-from avbench.eval.scorer import get_scorer
+from avbench.eval.scorer import answer_label, get_scorer
+
+
+def test_answer_label_buckets_yes_no_with_trailing_period():
+    # Gold answers in the DriveBench yes/no identification split are "Yes."/"No.";
+    # the model's parsed answer is "Yes"/"No". Both must map to the same class so the
+    # confusion matrix / recall treat yes/no as a 2-class problem, not just MCQ.
+    assert answer_label("Yes.", "Yes.") == "yes"
+    assert answer_label("No.", "No.") == "no"
+    assert answer_label("Yes", "Yes.") == "yes"      # parsed pred matches gold class
+    assert answer_label("no", "No.") == "no"          # case-insensitive
+
+
+def test_answer_label_mcq_uses_letter():
+    assert answer_label("A", "A") == "A"
+    assert answer_label("The answer is B.", "A") == "B"  # extracts the letter
 
 
 def test_mcq_letter_match():
