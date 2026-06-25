@@ -13,6 +13,5 @@ runs/
 .claude/
 .vscode/
 docs/
-TODO.md
-dataset_TODO.md
+local_mem/
 experiments/
