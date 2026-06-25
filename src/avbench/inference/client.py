@@ -49,7 +49,7 @@ def register_backend(name: str) -> Callable[[Type[VLMClient]], Type[VLMClient]]:
 
 def get_backend(name: str) -> Type[VLMClient]:
     # Import for side-effect registration.
-    from avbench.inference.backends import gemini, mock  # noqa: F401
+    from avbench.inference.backends import gemini, glm, mock  # noqa: F401
 
     if name not in _BACKENDS:
         raise KeyError(f"Unknown backend '{name}'. Registered: {sorted(_BACKENDS)}")
