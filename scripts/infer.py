@@ -36,6 +36,7 @@ DEFAULTS = {
     "task": None,
     "resume": True,
     "marker_grounding": False,  # draw a marker at <c,CAM,x,y> object refs
+    "single_camera": False,     # send only the referenced camera (only works if the question is single-cam)
 }
 
 
@@ -65,6 +66,8 @@ def main() -> None:
     ap.add_argument("--no-resume", dest="resume", action="store_false", default=None)
     ap.add_argument("--marker-grounding", dest="marker_grounding", action="store_true", default=None,
                     help="Draw a marker at each <c,CAM,x,y> object ref (removes the localization confound)")
+    ap.add_argument("--single-camera", dest="single_camera", action="store_true", default=None,
+                    help="Send only the referenced camera when the question names exactly one")
     args = ap.parse_args()
 
     apply_config(args, load_config(args.config), DEFAULTS)
@@ -84,6 +87,7 @@ def main() -> None:
         raise SystemExit(1)
     strategy = get_strategy(args.strategy)()
     strategy.marker_grounding = bool(args.marker_grounding)
+    strategy.single_camera = bool(args.single_camera)
 
     ok = asyncio.run(
         run_inference(

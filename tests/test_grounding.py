@@ -49,11 +49,29 @@ def test_no_refs_returns_images_unchanged(tmp_path):
     assert render_markers(s, cache_dir=str(tmp_path / "cache")) is s.images
 
 
-def test_condition_records_marker_flag():
+def test_condition_records_flags():
     strat = DirectAnswer()
-    assert strat.condition() == {"marker_grounding": False}
+    assert strat.condition() == {"marker_grounding": False, "single_camera": False}
     strat.marker_grounding = True
-    assert strat.condition() == {"marker_grounding": True}
+    strat.single_camera = True
+    assert strat.condition() == {"marker_grounding": True, "single_camera": True}
+
+
+def test_single_camera_keeps_only_referenced_camera(tmp_path):
+    s = _sample(tmp_path, ["<c1,CAM_FRONT,0.5,0.5>"])  # 2 imgs: CAM_BACK, CAM_FRONT
+    strat = DirectAnswer()
+    assert {im.camera for im in strat.images_for(s)} == {"CAM_BACK", "CAM_FRONT"}
+    strat.single_camera = True
+    out = strat.images_for(s)
+    assert [im.camera for im in out] == ["CAM_FRONT"]
+
+
+def test_single_camera_passes_through_when_multiple_cameras(tmp_path):
+    s = _sample(tmp_path, ["<c1,CAM_FRONT,0.5,0.5>", "<c2,CAM_BACK,0.5,0.5>"])
+    strat = DirectAnswer()
+    strat.single_camera = True
+    # Two referenced cameras -> can't reduce; keep the full surround view.
+    assert {im.camera for im in strat.images_for(s)} == {"CAM_BACK", "CAM_FRONT"}
 
 
 def test_yes_no_question_detection():

@@ -32,6 +32,19 @@ def parse_refs(text: str) -> List[Tuple[str, float, float]]:
     return out
 
 
+def referenced_cameras(sample: Sample) -> List[str]:
+    """Distinct cameras named by the sample's object references, first-seen order.
+
+    Uses the same ref source as render_markers so the two stay in lockstep. A
+    question that references exactly one camera only needs that camera's image."""
+    refs = parse_refs(" ".join(sample.object_refs) or sample.question)
+    seen: List[str] = []
+    for cam, _x, _y in refs:
+        if cam not in seen:
+            seen.append(cam)
+    return seen
+
+
 def _safe(sample_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", sample_id)
 

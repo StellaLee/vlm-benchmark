@@ -22,9 +22,13 @@ _YESNO_Q = re.compile(r"^\s*Is\s+<c\d+[^>]*>\s+an?\b.*\bor\s+an?\b.*\?\s*$", re.
 
 class PromptStrategy(ABC):
     name: str
-    # Run-level option, set by infer.py per run. (Abstention is a prompt
+    # Run-level options, set by infer.py per run. (Abstention is a prompt
     # formulation, so it's a strategy, not a flag; markers modify the image.)
     marker_grounding: bool = False
+    # Send only the referenced camera when the question names exactly one. Other
+    # cameras are distractors for single-camera identification questions, and
+    # dropping them removes the "which of the 6 cameras" half of grounding.
+    single_camera: bool = False
 
     @abstractmethod
     def build_prompt(self, sample: Sample) -> str:
@@ -36,18 +40,33 @@ class PromptStrategy(ABC):
 
     # --- shared plumbing for the run-level options -------------------------
     def images_for(self, sample: Sample) -> List[ImageRef]:
-        """sample.images, optionally with a marker drawn at each object_ref's
-        (camera, x, y) when --marker-grounding is set."""
+        """sample.images, modified by the active run-level options:
+        - --marker-grounding: draw a marker at each object_ref's (camera, x, y).
+        - --single-camera: keep only the referenced camera when the question
+          names exactly one (otherwise pass through unchanged — multi/no-ref
+          questions still need the full surround view)."""
+        images = sample.images
         if self.marker_grounding and sample.object_refs:
             from avbench.inference.grounding import render_markers
 
-            return render_markers(sample)
-        return sample.images
+            images = render_markers(sample)
+        if self.single_camera:
+            from avbench.inference.grounding import referenced_cameras
+
+            cams = referenced_cameras(sample)
+            if len(cams) == 1:
+                only = [im for im in images if im.camera == cams[0]]
+                if only:
+                    images = only
+        return images
 
     def condition(self) -> Dict[str, Any]:
         """The active ablation condition, recorded on the Prediction so
         evaluate.py can stratify metrics by it."""
-        return {"marker_grounding": bool(self.marker_grounding)}
+        return {
+            "marker_grounding": bool(self.marker_grounding),
+            "single_camera": bool(self.single_camera),
+        }
 
 
 def is_yes_no_question(question: str) -> bool:
