@@ -109,8 +109,10 @@ def surround_sorted(images: List[ImageRef]) -> List[ImageRef]:
 
 def surround_caption(images: List[ImageRef]) -> str:
     """One-line description of a stitched composite, so the model knows the single
-    image is a camera grid and which view is in which cell."""
-    cams = [(im.camera or "?").replace("CAM_", "") for im in surround_sorted(images)]
+    image is a camera grid and which view is in which cell. Cells are named with the
+    full CAM_ prefix so they match the <c1,CAM_...> object-ref tags in the question
+    verbatim (the model can map a referenced camera to its cell without translation)."""
+    cams = [im.camera or "?" for im in surround_sorted(images)]
     return ("This single image is a {}-camera surround grid, in reading order "
             "(left to right, top to bottom): {}.".format(len(cams), ", ".join(cams)))
 

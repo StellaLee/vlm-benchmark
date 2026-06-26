@@ -95,7 +95,9 @@ def test_stitch_layout_prompt_describes_the_grid(tmp_path):
     out = View(layout=Layout.STITCH).decorate_prompt(s, "What do you see?")
     assert "What do you see?" in out
     assert "grid" in out.lower()
-    assert "FRONT" in out and "BACK" in out  # names the cameras in the composite
+    # Cells are named with the full CAM_ prefix so they match the <c1,CAM_...> tags
+    # in the question verbatim (no FRONT vs CAM_FRONT mapping for the model to do).
+    assert "CAM_FRONT" in out and "CAM_BACK" in out
 
 
 def test_separate_layout_prompt_unchanged(tmp_path):

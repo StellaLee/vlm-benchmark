@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Render one sample's View output (marked/stitched images + the decorated prompt)
-to a folder so you can eyeball exactly what the model is sent — handy when a specific
-example looks wrong, without keeping a bulk image cache around.
+"""Preview the exact prompt — image *and* text — a strategy sends for one sample.
 
-  python scripts/preview_view.py --data data/curated/yes_subset.jsonl \
-      --layout stitch --marker-grounding --out experiments/outputs/preview
-  python scripts/preview_view.py --data data/curated/yes_subset.jsonl \
-      --sample-id drivebench/672026f4...127 --layout stitch
+Builds the prompt the chosen --strategy would send under the given --layout /
+--marker-grounding, prints the text, and renders the images into a folder so you
+can open them. Handy for eyeballing a specific example without running inference or
+keeping a bulk image cache around.
+
+  python scripts/preview_prompt.py --data data/curated/yes_subset.jsonl \
+      --strategy verbal_confidence --layout stitch --marker-grounding
+  python scripts/preview_prompt.py --data data/curated/yes_subset.jsonl \
+      --sample-id drivebench/672026f4...127 --strategy self_reflection --layout stitch
 """
 
 import argparse
@@ -27,7 +30,8 @@ def main() -> None:
     ap.add_argument("--layout", choices=[m.value for m in Layout], default="stitch")
     ap.add_argument("--marker-grounding", dest="marker_grounding", action="store_true")
     ap.add_argument("--strategy", default="verbal_confidence",
-                    help="strategy whose decorated prompt to show")
+                    help="strategy whose prompt to preview (e.g. verbal_confidence, "
+                         "self_reflection, consistency)")
     ap.add_argument("--out", default="experiments/outputs/preview",
                     help="folder to render the images into (so you can open them)")
     args = ap.parse_args()
@@ -51,13 +55,13 @@ def main() -> None:
     prompt = strategy.prompt_for(sample)
 
     print("sample_id:  {}".format(sample.sample_id))
-    print("question:   {}".format(sample.question))
     print("gold:       {}".format(sample.answer))
-    print("layout={}  marker_grounding={}".format(args.layout, args.marker_grounding))
-    print("\n--- images sent ({}) ---".format(len(images)))
+    print("strategy={}  layout={}  marker_grounding={}".format(
+        args.strategy, args.layout, args.marker_grounding))
+    print("\n--- prompt text ---\n{}".format(prompt))
+    print("\n--- prompt images ({}) — open these to eyeball ---".format(len(images)))
     for im in images:
         print("  {:16} {}".format(im.camera or "?", im.path))
-    print("\n--- prompt sent ---\n{}".format(prompt))
     print("\nrendered into: {}".format(os.path.abspath(args.out)))
 
 
