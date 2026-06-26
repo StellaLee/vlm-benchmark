@@ -42,7 +42,7 @@ def main() -> None:
                     help="correctness scorer: exact | structured (for open-ended)")
     ap.add_argument("--threshold", type=float, default=0.5, help="structured-scorer cutoff")
     ap.add_argument("--by", default="task",
-                    help="stratify by: task | a condition key (e.g. marker_grounding)")
+                    help="stratify by: task | a condition key (e.g. layout, marker_grounding)")
     args = ap.parse_args()
 
     kw = {"threshold": args.threshold} if args.scorer == "structured" else {}

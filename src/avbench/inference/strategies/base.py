@@ -7,9 +7,10 @@ parsed answer and whatever confidence signal it elicited.
 
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Type
+from typing import Callable, Dict, List, Optional, Type
 
 from avbench.inference.client import VLMClient
+from avbench.inference.view import View
 from avbench.schema import ImageRef, PromptFormat, Prediction, Sample
 
 # DriveLM identification questions ("Is <c1,CAM_BACK,0.54,0.48> a traffic sign or
@@ -22,13 +23,20 @@ _YESNO_Q = re.compile(r"^\s*Is\s+<c\d+[^>]*>\s+an?\b.*\bor\s+an?\b.*\?\s*$", re.
 
 class PromptStrategy(ABC):
     name: str
-    # Run-level options, set by infer.py per run. (Abstention is a prompt
-    # formulation, so it's a strategy, not a flag; markers modify the image.)
-    marker_grounding: bool = False
-    # Send only the referenced camera when the question names exactly one. Other
-    # cameras are distractors for single-camera identification questions, and
-    # dropping them removes the "which of the 6 cameras" half of grounding.
-    single_camera: bool = False
+    # How the sample's images + prompt are presented (layout / annotations), set by
+    # infer.py per run. (Abstention is a prompt formulation, so it's a strategy, not
+    # a View knob.) Lazily per-instance so there's no shared mutable default.
+    _view: Optional[View] = None
+
+    @property
+    def view(self) -> View:
+        if self._view is None:
+            self._view = View()
+        return self._view
+
+    @view.setter
+    def view(self, value: View) -> None:
+        self._view = value
 
     @abstractmethod
     def build_prompt(self, sample: Sample) -> str:
@@ -38,35 +46,20 @@ class PromptStrategy(ABC):
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         ...
 
-    # --- shared plumbing for the run-level options -------------------------
+    # --- shared plumbing: delegate presentation to the active View ----------
     def images_for(self, sample: Sample) -> List[ImageRef]:
-        """sample.images, modified by the active run-level options:
-        - --marker-grounding: draw a marker at each object_ref's (camera, x, y).
-        - --single-camera: keep only the referenced camera when the question
-          names exactly one (otherwise pass through unchanged — multi/no-ref
-          questions still need the full surround view)."""
-        images = sample.images
-        if self.marker_grounding and sample.object_refs:
-            from avbench.inference.grounding import render_markers
+        return self.view.images_for(sample)
 
-            images = render_markers(sample)
-        if self.single_camera:
-            from avbench.inference.grounding import referenced_cameras
+    def prompt_for(self, sample: Sample) -> str:
+        """build_prompt + the View's layout-dependent prompt decoration. Strategies
+        feed this (not build_prompt) to the client so e.g. a stitched view tells the
+        model it's a camera grid."""
+        return self.view.decorate_prompt(sample, self.build_prompt(sample))
 
-            cams = referenced_cameras(sample)
-            if len(cams) == 1:
-                only = [im for im in images if im.camera == cams[0]]
-                if only:
-                    images = only
-        return images
-
-    def condition(self) -> Dict[str, Any]:
-        """The active ablation condition, recorded on the Prediction so
-        evaluate.py can stratify metrics by it."""
-        return {
-            "marker_grounding": bool(self.marker_grounding),
-            "single_camera": bool(self.single_camera),
-        }
+    def condition(self) -> Dict[str, object]:
+        """The active ablation condition, recorded on the Prediction so evaluate.py
+        can stratify metrics by it (e.g. --by layout)."""
+        return self.view.condition()
 
 
 def is_yes_no_question(question: str) -> bool:

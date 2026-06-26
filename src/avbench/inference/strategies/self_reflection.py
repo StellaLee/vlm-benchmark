@@ -57,7 +57,7 @@ class SelfReflection(PromptStrategy):
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         imgs = self.images_for(sample)
-        first = (await client.generate(self.build_prompt(sample), imgs, n=1))[0]
+        first = (await client.generate(self.prompt_for(sample), imgs, n=1))[0]
         reflect = self._reflect_prompt(sample, first.text)
         final = (await client.generate(reflect, imgs, n=1))[0]
         return Prediction(
@@ -87,7 +87,7 @@ class Abstention(PromptStrategy):
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         imgs = self.images_for(sample)
-        res = (await client.generate(self.build_prompt(sample), imgs, n=1))[0]
+        res = (await client.generate(self.prompt_for(sample), imgs, n=1))[0]
         return Prediction(
             sample_id=sample.sample_id,
             model=client.model,

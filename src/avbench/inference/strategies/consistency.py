@@ -26,7 +26,7 @@ class Consistency(PromptStrategy):
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         imgs = self.images_for(sample)
         results = await client.generate(
-            self.build_prompt(sample), imgs, n=self.k, temperature=self.temperature
+            self.prompt_for(sample), imgs, n=self.k, temperature=self.temperature
         )
         answers = [extract_answer(r.text, sample) for r in results]
         counts = Counter(a for a in answers if a)

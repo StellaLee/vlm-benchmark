@@ -29,7 +29,7 @@ class VerbalConfidence(PromptStrategy):
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
         imgs = self.images_for(sample)
-        res = (await client.generate(self.build_prompt(sample), imgs, n=1))[0]
+        res = (await client.generate(self.prompt_for(sample), imgs, n=1))[0]
         return Prediction(
             sample_id=sample.sample_id,
             model=client.model,

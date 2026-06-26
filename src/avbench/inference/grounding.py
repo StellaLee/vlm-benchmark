@@ -9,6 +9,7 @@ named camera to remove that confound.
 Marked images are cached and reused, so repeated runs don't re-render.
 """
 
+import hashlib
 import os
 import re
 from typing import List, Optional, Tuple
@@ -16,6 +17,11 @@ from typing import List, Optional, Tuple
 from avbench.schema import ImageRef, Sample
 
 CACHE_DIR = "data/cache/markers"
+STITCH_CACHE_DIR = "data/cache/stitch"
+
+# Canonical nuScenes surround order: front row left-to-right, then back row.
+SURROUND_ORDER = ["CAM_FRONT_LEFT", "CAM_FRONT", "CAM_FRONT_RIGHT",
+                  "CAM_BACK_LEFT", "CAM_BACK", "CAM_BACK_RIGHT"]
 
 # <c1,CAM_BACK,0.5073,0.5778>  ->  (camera, x, y)
 _REF = re.compile(r"<\s*c\d+\s*,\s*(CAM_[A-Z_]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)")
@@ -70,9 +76,10 @@ def _draw(src_path: str, points: List[Tuple[float, float]], dst_path: str) -> Op
     return dst_path
 
 
-def render_markers(sample: Sample, cache_dir: str = CACHE_DIR) -> List[ImageRef]:
+def render_markers(sample: Sample, cache_dir: Optional[str] = None) -> List[ImageRef]:
     """Return sample.images with markers drawn on cameras referenced by the
     question's object tags. Non-referenced cameras pass through unchanged."""
+    cache_dir = cache_dir or CACHE_DIR
     refs = parse_refs(" ".join(sample.object_refs) or sample.question)
     if not refs:
         return sample.images
@@ -91,3 +98,48 @@ def render_markers(sample: Sample, cache_dir: str = CACHE_DIR) -> List[ImageRef]
         marked = dst if os.path.exists(dst) else _draw(im.path, pts, dst)
         out.append(ImageRef(path=marked or im.path, camera=im.camera, frame_idx=im.frame_idx))
     return out
+
+
+def surround_sorted(images: List[ImageRef]) -> List[ImageRef]:
+    """Images in canonical surround order (front row, then back row); cameras not in
+    SURROUND_ORDER keep their relative position at the end (stable sort)."""
+    rank = {c: i for i, c in enumerate(SURROUND_ORDER)}
+    return sorted(images, key=lambda im: rank.get(im.camera or "", len(SURROUND_ORDER)))
+
+
+def surround_caption(images: List[ImageRef]) -> str:
+    """One-line description of a stitched composite, so the model knows the single
+    image is a camera grid and which view is in which cell."""
+    cams = [(im.camera or "?").replace("CAM_", "") for im in surround_sorted(images)]
+    return ("This single image is a {}-camera surround grid, in reading order "
+            "(left to right, top to bottom): {}.".format(len(cams), ", ".join(cams)))
+
+
+def stitch_surround(images: List[ImageRef], sample_id: str, cols: int = 3,
+                    cache_dir: Optional[str] = None) -> ImageRef:
+    """Composite the per-camera images into one grid image (canonical surround order),
+    cached by sample_id. Returns a single ImageRef pointing at the composite."""
+    from PIL import Image
+
+    cache_dir = cache_dir or STITCH_CACHE_DIR
+    ordered = surround_sorted(images)
+    # Key on the source paths, not just sample_id: the composite depends on the input
+    # (e.g. marked vs unmarked frames), so they must not share a cache entry.
+    key = hashlib.md5("|".join(im.path for im in ordered).encode()).hexdigest()[:10]
+    dst = os.path.join(cache_dir, "{}__{}.jpg".format(_safe(sample_id), key))
+    if os.path.exists(dst):
+        return ImageRef(path=dst, camera="SURROUND", frame_idx=ordered[0].frame_idx)
+
+    tiles = [Image.open(im.path).convert("RGB") for im in ordered]
+    cell_w = max(t.width for t in tiles)
+    cell_h = max(t.height for t in tiles)
+    rows = (len(tiles) + cols - 1) // cols
+    canvas = Image.new("RGB", (cols * cell_w, rows * cell_h), (0, 0, 0))
+    for i, t in enumerate(tiles):
+        if t.size != (cell_w, cell_h):
+            t = t.resize((cell_w, cell_h))
+        r, c = divmod(i, cols)
+        canvas.paste(t, (c * cell_w, r * cell_h))
+    os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
+    canvas.save(dst, quality=90)
+    return ImageRef(path=dst, camera="SURROUND", frame_idx=ordered[0].frame_idx)

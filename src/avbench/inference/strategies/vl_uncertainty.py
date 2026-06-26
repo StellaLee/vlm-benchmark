@@ -64,7 +64,7 @@ class VLUncertainty(PromptStrategy):
         return out
 
     async def run(self, sample: Sample, client: VLMClient) -> Prediction:
-        prompt = self.build_prompt(sample)
+        prompt = self.prompt_for(sample)
         base_imgs = self.images_for(sample)
         tmpdir = tempfile.mkdtemp(prefix="vlu_")
         try:

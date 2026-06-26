@@ -9,6 +9,7 @@ from PIL import Image
 from avbench.inference.grounding import parse_refs, render_markers
 from avbench.inference.strategies.base import answer_instruction, is_yes_no_question
 from avbench.inference.strategies.direct import DirectAnswer
+from avbench.inference.view import Layout, View
 from avbench.schema import ImageRef, PromptFormat, Sample, TaskType
 
 
@@ -49,29 +50,16 @@ def test_no_refs_returns_images_unchanged(tmp_path):
     assert render_markers(s, cache_dir=str(tmp_path / "cache")) is s.images
 
 
-def test_condition_records_flags():
+def test_strategy_delegates_presentation_to_its_view(tmp_path):
+    # The strategy is just a thin pass-through to its View (pipeline behavior itself
+    # is pinned in test_view.py); here we check the wiring + the default.
     strat = DirectAnswer()
-    assert strat.condition() == {"marker_grounding": False, "single_camera": False}
-    strat.marker_grounding = True
-    strat.single_camera = True
-    assert strat.condition() == {"marker_grounding": True, "single_camera": True}
-
-
-def test_single_camera_keeps_only_referenced_camera(tmp_path):
+    assert strat.condition() == {"layout": "separate", "marker_grounding": False}
     s = _sample(tmp_path, ["<c1,CAM_FRONT,0.5,0.5>"])  # 2 imgs: CAM_BACK, CAM_FRONT
-    strat = DirectAnswer()
     assert {im.camera for im in strat.images_for(s)} == {"CAM_BACK", "CAM_FRONT"}
-    strat.single_camera = True
-    out = strat.images_for(s)
-    assert [im.camera for im in out] == ["CAM_FRONT"]
-
-
-def test_single_camera_passes_through_when_multiple_cameras(tmp_path):
-    s = _sample(tmp_path, ["<c1,CAM_FRONT,0.5,0.5>", "<c2,CAM_BACK,0.5,0.5>"])
-    strat = DirectAnswer()
-    strat.single_camera = True
-    # Two referenced cameras -> can't reduce; keep the full surround view.
-    assert {im.camera for im in strat.images_for(s)} == {"CAM_BACK", "CAM_FRONT"}
+    strat.view = View(layout=Layout.SINGLE)
+    assert [im.camera for im in strat.images_for(s)] == ["CAM_FRONT"]
+    assert strat.condition() == {"layout": "single", "marker_grounding": False}
 
 
 def test_yes_no_question_detection():
