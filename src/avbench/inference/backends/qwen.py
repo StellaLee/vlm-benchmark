@@ -8,8 +8,10 @@ defaults to the mainland DashScope platform and is overridable via QWEN_BASE_URL
 international platform).
 
 Images are sent inline as base64 data URLs, one labelled part per camera, mirroring
-the GLM/Gemini backends. Logprobs are not requested, so avg_logprob stays None and
-the token-probability strategy records a capability gap instead of failing.
+the GLM/Gemini backends. Unlike GLM, DashScope's compatible mode returns token
+logprobs (choices[].logprobs.content[].logprob); we request them by default and
+expose their mean as avg_logprob, so the `direct` strategy gets a token-probability
+confidence signal (exp(avg_logprob)).
 """
 
 import asyncio
@@ -43,10 +45,14 @@ class QwenClient(VLMClient):
         base_url: Optional[str] = None,
         max_retries: int = 4,
         timeout: float = 120.0,
+        request_logprobs: bool = True,
     ):
         import httpx  # imported lazily so curation has no hard dep
 
         self.model = model
+        # DashScope compatible mode reliably returns logprobs, so request them by
+        # default (the `direct` strategy reads avg_logprob without passing a flag).
+        self.request_logprobs = request_logprobs
         key = api_key or os.environ.get("QWEN_API_KEY") or os.environ.get("DASHSCOPE_API_KEY")
         if not key:
             raise RuntimeError(
@@ -74,8 +80,10 @@ class QwenClient(VLMClient):
         content.append({"type": "text", "text": prompt})
         return [{"role": "user", "content": content}]
 
-    async def _one_call(self, messages, temperature: float) -> GenResult:
+    async def _one_call(self, messages, temperature: float, logprobs: bool) -> GenResult:
         payload = {"model": self.model, "messages": messages, "temperature": temperature}
+        if logprobs:
+            payload["logprobs"] = True
         headers = {"Authorization": "Bearer {}".format(self._key)}
         url = "{}/chat/completions".format(self._base_url)
 
@@ -103,8 +111,14 @@ class QwenClient(VLMClient):
 
     def _to_result(self, data: dict) -> GenResult:
         text = ""
+        avg_logprob = None
         try:
-            text = data["choices"][0]["message"]["content"] or ""
+            choice = data["choices"][0]
+            text = choice["message"]["content"] or ""
+            content = (choice.get("logprobs") or {}).get("content") or []
+            lps = [t["logprob"] for t in content if t.get("logprob") is not None]
+            if lps:
+                avg_logprob = sum(lps) / len(lps)
         except (KeyError, IndexError, TypeError):
             pass
         usage = {"backend": "qwen", "model": self.model}
@@ -114,7 +128,7 @@ class QwenClient(VLMClient):
             output_tokens=um.get("completion_tokens"),
             total_tokens=um.get("total_tokens"),
         )
-        return GenResult(text=text, avg_logprob=None, usage=usage)
+        return GenResult(text=text, avg_logprob=avg_logprob, usage=usage)
 
     async def generate(
         self,
@@ -125,9 +139,10 @@ class QwenClient(VLMClient):
         logprobs: bool = False,
     ) -> List[GenResult]:
         messages = self._build_messages(prompt, images)
+        want_lp = logprobs or self.request_logprobs
         if n == 1:
-            return [await self._one_call(messages, temperature)]
+            return [await self._one_call(messages, temperature, want_lp)]
         results = await asyncio.gather(
-            *[self._one_call(messages, temperature) for _ in range(n)]
+            *[self._one_call(messages, temperature, want_lp) for _ in range(n)]
         )
         return list(results)
