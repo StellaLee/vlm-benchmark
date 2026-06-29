@@ -61,7 +61,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=None, help="YAML config; CLI flags override it")
     ap.add_argument("--data", default=None, help="Curated Sample JSONL")
-    ap.add_argument("--backend", default=None, help="gemini | glm | mock")
+    ap.add_argument("--backend", default=None, help="gemini | glm | qwen | mock")
     ap.add_argument("--model", default=None)
     ap.add_argument("--strategy", default=None)
     ap.add_argument("--out", default=None)
