@@ -33,6 +33,30 @@ from avbench.schema import ImageRef, PromptFormat, Sample, TaskType
 
 _OBJECT_REF = re.compile(r"<c\d+,\s*CAM_[A-Z_]+[^>]*>")
 
+# DriveBench MCQ items embed the choices inline in the question rather than in a
+# separate field: "<stem> Please select the correct answer from the following
+# options: A. <opt> B. <opt> ...". Detect that and lift the options out.
+_MCQ_MARKER = re.compile(
+    r"(?P<stem>.*?)\s*Please select the correct answer from the following options:\s*"
+    r"(?P<opts>.*)", re.IGNORECASE | re.DOTALL)
+# Each option runs from its letter marker up to the next marker (or end). Options
+# may contain internal periods, so split on the markers, not on ". ".
+_MCQ_OPTION = re.compile(r"[A-E]\.\s*(.*?)(?=\s+[A-E]\.\s|$)", re.DOTALL)
+
+
+def _parse_inline_mcq(question: str):
+    """Return (stem, [options]) if the question carries inline lettered choices,
+    else (question, None). The stem drops the "Please select..." scaffolding so
+    the prompt renderer can re-emit the options without duplicating them."""
+    m = _MCQ_MARKER.match(question)
+    if not m:
+        return question, None
+    options = [o.strip() for o in _MCQ_OPTION.findall(m.group("opts"))]
+    options = [o for o in options if o]
+    if len(options) < 2:  # not really a multiple choice
+        return question, None
+    return m.group("stem").strip(), options
+
 _TASK_MAP = {
     "perception": TaskType.PERCEPTION,
     "prediction": TaskType.PREDICTION,
@@ -154,17 +178,19 @@ class DriveBenchAdapter(DatasetAdapter):
         if self.split is not None and setting != self.split:
             return None
 
+        question = _first(rec, "question", "prompt", default="")
+        answer = _first(rec, "answer", "gt_answer", "final_answer", default="")
+        if not question or answer in (None, ""):
+            return None
+
         fmt_raw = str(_first(rec, "format", "type", default="")).lower()
         options = _first(rec, "options", "choices")
+        if not options:  # no explicit field: try to lift inline lettered choices
+            question, options = _parse_inline_mcq(question)
         fmt = _FORMAT_MAP.get(fmt_raw)
         if fmt is None:  # infer
             fmt = PromptFormat.MCQ if options else PromptFormat.QA
         if self.formats is not None and fmt.value not in self.formats:
-            return None
-
-        question = _first(rec, "question", "prompt", default="")
-        answer = _first(rec, "answer", "gt_answer", "final_answer", default="")
-        if not question or answer in (None, ""):
             return None
 
         task_raw = str(_first(rec, "question_type", "task", "category", "task_type", default="")).lower()

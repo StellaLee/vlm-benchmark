@@ -8,9 +8,10 @@ from avbench.inference.parsing import extract_answer, extract_confidence, is_abs
 from avbench.schema import PromptFormat, Sample, TaskType
 
 
-def _sample(fmt=PromptFormat.QA, answer="x"):
+def _sample(fmt=PromptFormat.QA, answer="x", options=None):
     return Sample(sample_id="s", dataset="d", task_type=TaskType.PLANNING,
-                  prompt_format=fmt, question="q", answer=answer, images=[])
+                  prompt_format=fmt, question="q", answer=answer, images=[],
+                  options=options)
 
 
 # ---- confidence -------------------------------------------------------------
@@ -32,6 +33,46 @@ def test_extract_confidence(text, expected):
 def test_mcq_answer_is_letter_only():
     s = _sample(PromptFormat.MCQ)
     assert extract_answer("Answer: C\nConfidence: 90", s) == "C"
+
+
+_OPTS = ["Turn left.", "Going ahead.", "Turn right."]
+
+
+def test_mcq_recovers_letter_from_quoted_option():
+    # A verbose answer that names the option text but no bare letter still maps to
+    # the right choice (recovers task competence from a format-noncompliant answer).
+    s = _sample(PromptFormat.MCQ, answer="B", options=_OPTS)
+    text = ('The silver car is facing forward and in motion, so the most '
+            'appropriate status is "Going ahead."')
+    assert extract_answer(text, s) == "B"
+
+
+def test_mcq_bare_letter_wins_over_option_text():
+    s = _sample(PromptFormat.MCQ, answer="A", options=_OPTS)
+    assert extract_answer("A. Turn left.", s) == "A"
+
+
+def test_mcq_ambiguous_multiple_options_not_recovered():
+    # If several option texts appear, don't guess — leave it for strict scoring.
+    s = _sample(PromptFormat.MCQ, answer="A", options=_OPTS)
+    text = "It could be going ahead or turn right; hard to say."
+    assert extract_answer(text, s) != "B"
+    assert extract_answer(text, s) != "C"
+
+
+def test_glm_boxed_final_answer_after_reasoning():
+    # glm-4.1v-thinking reasons first, then marks its final answer in a box at the
+    # end. The boxed span is authoritative — not the first stray letter/line.
+    s = _sample(PromptFormat.MCQ, answer="D", options=_OPTS)
+    text = ("Option A looks plausible but is wrong.\n"
+            "Thus the best match is <|begin_of_box|>D<|end_of_box|>.")
+    assert extract_answer(text, s) == "D"
+
+
+def test_glm_box_used_for_open_ended_too():
+    s = _sample(PromptFormat.QA)
+    text = "Reasoning here.\n<|begin_of_box|>keep going at the same speed<|end_of_box|>"
+    assert extract_answer(text, s) == "keep going at the same speed"
 
 
 def test_open_ended_answer_excludes_confidence_line():

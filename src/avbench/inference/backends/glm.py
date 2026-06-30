@@ -10,6 +10,19 @@ Images are sent inline as base64 data URLs, one labelled part per camera, mirror
 the Gemini backend. Logprobs are not exposed by GLM, so avg_logprob stays None and
 the token-probability strategy records a capability gap instead of failing.
 
+Getting logprobs anyway (none of these are Zhipu-hosted): the official BigModel/Z.ai
+endpoint accepts a `logprobs` param but returns `logprobs:null` (verified). The only
+way to a token-probability signal for GLM is a serving stack that runs the OPEN weights
+and exposes logprobs:
+  - Self-host GLM-4V/4.1V on vLLM (OpenAI-compatible; supports `logprobs`/`prompt_logprobs`)
+    and point GLM_BASE_URL at it.
+  - Or route via OpenRouter PINNED to a third-party open-weights host that lists
+    `logprobs` in the endpoint's supported_parameters (e.g. DeepInfra/Novita on vLLM) —
+    set GLM_BASE_URL=https://openrouter.ai/api/v1 + an OpenRouter key, pass
+    provider={"only":[...]} so it can't fall back to Z.ai (which returns null). Confirm
+    the *vision* GLM (not just text GLM-4.5/4.6) is hosted with logprobs first. Cloudflare
+    AI Gateway is a passthrough proxy and adds nothing here — it only relays upstream.
+
 Note: GLM models cap images per request (error code 1210). Verified for the 6-camera
 nuScenes input: glm-4v-flash rejects 6; glm-4v-plus caps at 5; glm-4.1v-thinking-flash
 (free), glm-4.5v, and glm-4v accept all 6. Use a 6-image-capable model rather than
