@@ -11,6 +11,8 @@ infer   →  runs/*.jsonl           (Prediction: ŷ + confidence)
 evaluate→  join on sample_id → accuracy / ECE / AUROC per task
 ```
 
+Code-structure map (modules, scripts, extension points): see [ARCHITECTURE.md](ARCHITECTURE.md).
+
 ## Install
 
 ```bash
@@ -102,8 +104,11 @@ curl -L -o data/raw/drivebench/drivebench-test.json \
 ```
 
 1,461 QA over 200 keyframes (perception 400 / planning 600 / prediction 261 /
-behavior 200). All open-ended **except behavior**, which is multiple-choice with
-single-letter answers (clean exact-match for ECE/AUROC).
+behavior 200). Most are open-ended, but two slices are clean exact-match
+(ECE/AUROC-friendly): the **behavior** split and ~200 **perception** items are
+multiple-choice (inline "Please select the correct answer …: A. … B. …", single-letter
+gold), and the "Is `<c>` a sign or a barrier?" identification questions are polar
+yes/no. Extract them with `curate.py --formats mcq` or `--formats yesno`.
 
 **2. Images** — the matching nuScenes frames are on HuggingFace as
 `OpenDriveLab/DriveLM` (gated: auto). Set `HF_TOKEN` in `.env` and accept the gate
@@ -193,7 +198,7 @@ arena split is temporally sparse (see TODO).
 |-------|--------|
 | Schema | `Sample`, `Prediction` (Pydantic) — the contract everything shares |
 | Curation | `DatasetAdapter` ABC + registry, **DriveBench** adapter, nuScenes sensor-path linking, task-stratified sampling |
-| Inference | `VLMClient` ABC, **Gemini** + **mock** backends, async runner (bounded concurrency, resume, error capture) |
+| Inference | `VLMClient` ABC, **Gemini**, **GLM**, **Qwen** + **mock** backends (Qwen exposes token logprobs), async runner (bounded concurrency, resume, error capture); `View` for image layout (separate/stitch/single) + marker grounding |
 | Strategies | `direct`, `verbal_confidence`, `consistency` (self-consistency), `self_reflection` (2-turn critique+revise), `abstention` ("I cannot determine"), `vl_uncertainty` (visual-perturbation semantic entropy, arXiv 2411.11919) |
 | Eval | accuracy, ECE, AUROC — overall and per `task_type`; pluggable correctness scorers (`exact`, deterministic `structured`) with a human-free synthetic-control validation harness (`scripts/validate_scorer.py`) |
 
@@ -205,7 +210,8 @@ arena split is temporally sparse (see TODO).
   add `src/avbench/inference/strategies/<name>.py` with `@register("<name>")`.
 - **Local model** (vLLM, O2/O3) → add a backend implementing `VLMClient`
   (OpenAI-compatible). Token-logprob strategies light up automatically when the
-  backend populates `GenResult.avg_logprob` (Gemini free tier usually doesn't).
+  backend populates `GenResult.avg_logprob` — Qwen/DashScope does; GLM's hosted
+  endpoint returns `logprobs:null` and the Gemini free tier exposes none.
 
 ## Status / known gaps
 
