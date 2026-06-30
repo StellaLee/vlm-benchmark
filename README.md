@@ -13,6 +13,8 @@ evaluate→  join on sample_id → accuracy / ECE / AUROC per task
 
 Code-structure map (modules, scripts, extension points): see [ARCHITECTURE.md](ARCHITECTURE.md).
 
+_Last updated: 2026-06-30._
+
 ## Install
 
 ```bash
