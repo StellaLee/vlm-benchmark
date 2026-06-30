@@ -67,3 +67,21 @@ def test_formats_mcq_filter_selects_inline_mcq():
     a = _adapter(formats=["mcq"])
     assert a._to_sample(mcq, 0) is not None
     assert a._to_sample(qa, 1) is None
+
+
+# Yes/No identification questions ("Is <c> a A or a B?") are polar — gold is Yes/No,
+# not a noun. Classifying them at curation (from the gold answer) lets inference shape
+# the prompt off a typed field instead of re-parsing the question text downstream.
+def test_yesno_gold_classified_as_yesno():
+    q = "Is <c1,CAM_BACK,0.5,0.5> a traffic sign or a road barrier?"
+    for ans in ("Yes.", "No.", "yes", "NO"):
+        s = _adapter()._to_sample(_rec(q, answer=ans), 0)
+        assert s.prompt_format == PromptFormat.YESNO, ans
+        assert s.options is None  # not MCQ — no lettered choices
+
+
+def test_mcq_letter_gold_not_misread_as_yesno():
+    s = _adapter()._to_sample(_rec(
+        "Status? Please select the correct answer from the following options: "
+        "A. Going ahead. B. Turn left.", answer="A"), 0)
+    assert s.prompt_format == PromptFormat.MCQ

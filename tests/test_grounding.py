@@ -7,7 +7,7 @@ evaluate.py stratifies on."""
 from PIL import Image
 
 from avbench.inference.grounding import parse_refs, render_markers
-from avbench.inference.strategies.base import answer_instruction, is_yes_no_question
+from avbench.inference.strategies.base import answer_instruction
 from avbench.inference.strategies.direct import DirectAnswer
 from avbench.inference.view import Layout, View
 from avbench.schema import ImageRef, PromptFormat, Sample, TaskType
@@ -62,14 +62,11 @@ def test_strategy_delegates_presentation_to_its_view(tmp_path):
     assert strat.condition() == {"layout": "single", "marker_grounding": False}
 
 
-def test_yes_no_question_detection():
-    assert is_yes_no_question("Is <c1,CAM_BACK,0.5,0.5> a traffic sign or a road barrier?")
-    assert not is_yes_no_question("What is the moving status of <c1,CAM_BACK,0.5,0.5>?")
-    assert not is_yes_no_question("What are the important objects in the scene?")
-
-
 def test_answer_instruction_by_question_type():
-    yn = _q("Is <c1,CAM_BACK,0.5,0.5> a traffic sign or a road barrier?")
+    # keys off the typed prompt_format (set during curation), not a regex on the text.
+    yn = Sample(sample_id="d/x", dataset="d", task_type=TaskType.PERCEPTION,
+                prompt_format=PromptFormat.YESNO, question="Is <c1> a sign or a barrier?",
+                answer="No.", images=[])
     assert answer_instruction(yn) == "Answer Yes or No."
     assert answer_instruction(_q("What is X?")) == "Give a concise answer."
     assert "letter" in answer_instruction(_q("Pick one", options=["A", "B"]))

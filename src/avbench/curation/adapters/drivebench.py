@@ -188,8 +188,13 @@ class DriveBenchAdapter(DatasetAdapter):
         if not options:  # no explicit field: try to lift inline lettered choices
             question, options = _parse_inline_mcq(question)
         fmt = _FORMAT_MAP.get(fmt_raw)
-        if fmt is None:  # infer
-            fmt = PromptFormat.MCQ if options else PromptFormat.QA
+        if fmt is None:  # infer from the structure / gold answer
+            if options:
+                fmt = PromptFormat.MCQ
+            elif str(answer).strip().rstrip(".").lower() in ("yes", "no"):
+                fmt = PromptFormat.YESNO  # polar identification (gold is Yes/No)
+            else:
+                fmt = PromptFormat.QA
         if self.formats is not None and fmt.value not in self.formats:
             return None
 

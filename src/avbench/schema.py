@@ -24,6 +24,7 @@ class TaskType(str, Enum):
 
 class PromptFormat(str, Enum):
     MCQ = "mcq"  # multiple choice — clean binary correctness
+    YESNO = "yesno"  # polar Yes/No (e.g. DriveLM "Is <c> a sign or a barrier?")
     QA = "qa"  # open-ended short answer
     CAP = "cap"  # caption / description
 
