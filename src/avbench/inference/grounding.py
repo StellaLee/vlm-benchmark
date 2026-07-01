@@ -18,6 +18,11 @@ from avbench.schema import ImageRef, Sample
 
 CACHE_DIR = "data/cache/markers"
 STITCH_CACHE_DIR = "data/cache/stitch"
+MASK_CACHE_DIR = "data/cache/mask"
+
+# Fill color for the masked/blind ablation: a mid-gray canvas carries no scene
+# content while staying a valid, same-sized image (isolates the language prior).
+_MASK_FILL = (128, 128, 128)
 
 # Canonical nuScenes surround order: front row left-to-right, then back row.
 SURROUND_ORDER = ["CAM_FRONT_LEFT", "CAM_FRONT", "CAM_FRONT_RIGHT",
@@ -97,6 +102,31 @@ def render_markers(sample: Sample, cache_dir: Optional[str] = None) -> List[Imag
         dst = os.path.join(cache_dir, "{}__{}.jpg".format(_safe(sample.sample_id), im.camera))
         marked = dst if os.path.exists(dst) else _draw(im.path, pts, dst)
         out.append(ImageRef(path=marked or im.path, camera=im.camera, frame_idx=im.frame_idx))
+    return out
+
+
+def mask_images(images: List[ImageRef], sample_id: str,
+                cache_dir: Optional[str] = None) -> List[ImageRef]:
+    """Return blank same-sized canvases in place of each image, preserving count and
+    per-camera label. Removes all scene content so a run measures the language prior
+    only (the blind/masked hallucination probe); keeps the image *slots* so token
+    cost and prompt structure stay comparable to the full-image run."""
+    from PIL import Image
+
+    cache_dir = cache_dir or MASK_CACHE_DIR
+    out: List[ImageRef] = []
+    for im in images:
+        try:
+            with Image.open(im.path) as src:
+                size = src.size
+        except OSError:
+            continue
+        # Key on size so different-resolution cameras don't collide on one canvas.
+        dst = os.path.join(cache_dir, "mask_{}x{}.jpg".format(*size))
+        if not os.path.exists(dst):
+            os.makedirs(os.path.dirname(os.path.abspath(dst)), exist_ok=True)
+            Image.new("RGB", size, _MASK_FILL).save(dst, quality=90)
+        out.append(ImageRef(path=dst, camera=im.camera, frame_idx=im.frame_idx))
     return out
 
 

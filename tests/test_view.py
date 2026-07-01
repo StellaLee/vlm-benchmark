@@ -8,7 +8,7 @@ condition is recorded the way evaluate.py stratifies on (--by layout)."""
 import pytest
 from PIL import Image
 
-from avbench.inference.view import Layout, View
+from avbench.inference.view import Layout, View, Vision
 from avbench.schema import ImageRef, PromptFormat, Sample, TaskType
 
 
@@ -20,6 +20,8 @@ def _isolate_caches(tmp_path, monkeypatch):
                         str(tmp_path / "stitch_cache"))
     monkeypatch.setattr("avbench.inference.grounding.CACHE_DIR",
                         str(tmp_path / "marker_cache"))
+    monkeypatch.setattr("avbench.inference.grounding.MASK_CACHE_DIR",
+                        str(tmp_path / "mask_cache"))
 
 
 def _img(path, w=64, h=48, color=(10, 20, 30)):
@@ -138,7 +140,35 @@ def test_cache_dir_keeps_renders_out_of_the_default_cache(tmp_path):
     assert not os.path.exists(g.CACHE_DIR)
 
 
-def test_condition_records_layout_and_marker():
-    assert View().condition() == {"layout": "separate", "marker_grounding": False}
-    assert View(layout=Layout.STITCH, marker_grounding=True).condition() == {
-        "layout": "stitch", "marker_grounding": True}
+def test_vision_none_drops_all_images(tmp_path):
+    # The blind text-only ablation: no images reach the model at all (pure language
+    # prior), whatever the layout would otherwise produce.
+    s = _sample(tmp_path, ["CAM_FRONT", "CAM_BACK"])
+    assert View(vision=Vision.NONE).images_for(s) == []
+    assert View(layout=Layout.STITCH, vision=Vision.NONE).images_for(s) == []
+
+
+def test_vision_mask_keeps_count_and_labels_but_blanks_pixels(tmp_path):
+    # Masked ablation on the default separate layout: same 6-ish image slots + camera
+    # labels, but each carries no scene content — isolates the visual signal.
+    s = _sample(tmp_path, ["CAM_FRONT", "CAM_BACK"])
+    out = View(vision=Vision.MASK).images_for(s)
+    assert [im.camera for im in out] == ["CAM_FRONT", "CAM_BACK"]
+    for im in out:
+        assert len(set(Image.open(im.path).convert("RGB").getdata())) == 1  # uniform
+
+
+def test_vision_mask_applies_after_stitch(tmp_path):
+    # Mask composes with layout: stitch first (one grid), then blank it -> a single
+    # content-free canvas, so the masked/full stitch runs stay token-comparable.
+    s = _sample(tmp_path, ["CAM_FRONT", "CAM_BACK", "CAM_FRONT_LEFT"])
+    out = View(layout=Layout.STITCH, vision=Vision.MASK).images_for(s)
+    assert len(out) == 1
+    assert len(set(Image.open(out[0].path).convert("RGB").getdata())) == 1
+
+
+def test_condition_records_layout_marker_and_vision():
+    assert View().condition() == {
+        "layout": "separate", "marker_grounding": False, "vision": "full"}
+    assert View(layout=Layout.STITCH, marker_grounding=True, vision=Vision.MASK).condition() == {
+        "layout": "stitch", "marker_grounding": True, "vision": "mask"}

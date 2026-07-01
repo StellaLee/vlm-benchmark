@@ -25,7 +25,7 @@ from avbench.config import apply_config, load_config
 from avbench.inference.client import get_backend
 from avbench.inference.runner import run_inference
 from avbench.inference.strategies.base import get_strategy
-from avbench.inference.view import Layout, View
+from avbench.inference.view import Layout, View, Vision
 from avbench.io_utils import read_jsonl
 from avbench.schema import Sample
 
@@ -41,6 +41,7 @@ DEFAULTS = {
     "resume": True,
     "marker_grounding": False,  # draw a marker at <c,CAM,x,y> object refs
     "layout": "separate",       # separate | stitch | single (how the cameras are packaged)
+    "vision": "full",           # full | mask | none (blind ablation: hide the visual signal)
     "no_image_cache": True,    # render marked/stitched images to a temp dir, default to True to avoid polluting the repo.
 }
 
@@ -74,6 +75,9 @@ def main() -> None:
     ap.add_argument("--layout", choices=[m.value for m in Layout], default=None,
                     help="How surround cameras are shown: separate (default) | stitch (one grid image) "
                          "| single (only the referenced camera, when the question names one)")
+    ap.add_argument("--vision", choices=[m.value for m in Vision], default=None,
+                    help="Blind ablation: full (default) | mask (blank same-sized canvases, no scene) "
+                         "| none (drop all images, text only) — probes reliance on the language prior")
     ap.add_argument("--no-image-cache", dest="no_image_cache", action="store_true", default=None,
                     help="Render marked/stitched images to a temp dir wiped at exit, instead of the "
                          "persistent data/cache (use for one-shot bulk runs to avoid a large cache)")
@@ -101,7 +105,7 @@ def main() -> None:
 
     strategy = get_strategy(args.strategy)()
     strategy.view = View(layout=Layout(args.layout), marker_grounding=bool(args.marker_grounding),
-                         cache_dir=cache_dir)
+                         vision=Vision(args.vision), cache_dir=cache_dir)
 
     ok = asyncio.run(
         run_inference(

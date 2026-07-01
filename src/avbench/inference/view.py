@@ -20,6 +20,7 @@ from enum import Enum
 from typing import List, Optional
 
 from avbench.inference.grounding import (
+    mask_images,
     referenced_cameras,
     render_markers,
     stitch_surround,
@@ -34,10 +35,19 @@ class Layout(str, Enum):
     SINGLE = "single"      # only the referenced camera, when the question names one
 
 
+class Vision(str, Enum):
+    """How much of the visual signal reaches the model — the blind/hallucination
+    probe axis. Orthogonal to Layout: it applies *after* the cameras are packaged."""
+    FULL = "full"   # real camera images (default)
+    MASK = "mask"   # blank canvases, same count/labels/size — no scene content
+    NONE = "none"   # no images at all: pure text (language prior only)
+
+
 @dataclass
 class View:
     layout: Layout = Layout.SEPARATE
     marker_grounding: bool = False  # orthogonal image annotation, applied before layout
+    vision: "Vision" = Vision.FULL  # blind ablation, applied after layout
     # Where rendered (marked/stitched) images are written. None = the default
     # persistent cache; infer.py's --no-image-cache points this at an ephemeral
     # temp dir (cleaned at exit) so bulk runs leave nothing behind.
@@ -55,6 +65,12 @@ class View:
                     images = only
         elif self.layout is Layout.STITCH:
             images = [stitch_surround(images, sample.sample_id, cache_dir=self.cache_dir)]
+        # Blind ablation runs last, over whatever the layout produced, so the masked
+        # run keeps the same image slots as the full run it's compared against.
+        if self.vision is Vision.NONE:
+            return []
+        if self.vision is Vision.MASK:
+            images = mask_images(images, sample.sample_id, cache_dir=self.cache_dir)
         return images
 
     def decorate_prompt(self, sample: Sample, prompt: str) -> str:
@@ -67,4 +83,6 @@ class View:
         return prompt
 
     def condition(self) -> dict:
-        return {"layout": self.layout.value, "marker_grounding": bool(self.marker_grounding)}
+        return {"layout": self.layout.value,
+                "marker_grounding": bool(self.marker_grounding),
+                "vision": self.vision.value}

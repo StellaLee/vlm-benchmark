@@ -6,7 +6,7 @@ evaluate.py stratifies on."""
 
 from PIL import Image
 
-from avbench.inference.grounding import parse_refs, render_markers
+from avbench.inference.grounding import mask_images, parse_refs, render_markers
 from avbench.inference.strategies.base import answer_instruction
 from avbench.inference.strategies.direct import DirectAnswer
 from avbench.inference.view import Layout, View
@@ -50,16 +50,34 @@ def test_no_refs_returns_images_unchanged(tmp_path):
     assert render_markers(s, cache_dir=str(tmp_path / "cache")) is s.images
 
 
+def test_mask_images_blanks_pixels_keeps_size_and_camera(tmp_path):
+    # The blind/masked ablation: replace each camera's pixels with a uniform canvas
+    # (no scene content) while preserving image count, per-camera label, and size, so
+    # the only thing removed is the visual signal (isolates the language prior).
+    s = _sample(tmp_path, [])  # 2 imgs: CAM_BACK (64x48), CAM_FRONT (64x48)
+    out = mask_images(s.images, s.sample_id, cache_dir=str(tmp_path / "mask"))
+    assert [im.camera for im in out] == ["CAM_BACK", "CAM_FRONT"]
+    for im in out:
+        assert im.path not in {o.path for o in s.images}  # rewritten, not a passthrough
+        masked = Image.open(im.path).convert("RGB")
+        assert masked.size == (64, 48)  # same dimensions
+        px = set(masked.getdata())
+        assert len(px) == 1  # a single uniform color: no scene content survives
+        assert px != {(10, 20, 30)}  # and it's not the original frame color
+
+
 def test_strategy_delegates_presentation_to_its_view(tmp_path):
     # The strategy is just a thin pass-through to its View (pipeline behavior itself
     # is pinned in test_view.py); here we check the wiring + the default.
     strat = DirectAnswer()
-    assert strat.condition() == {"layout": "separate", "marker_grounding": False}
+    assert strat.condition() == {
+        "layout": "separate", "marker_grounding": False, "vision": "full"}
     s = _sample(tmp_path, ["<c1,CAM_FRONT,0.5,0.5>"])  # 2 imgs: CAM_BACK, CAM_FRONT
     assert {im.camera for im in strat.images_for(s)} == {"CAM_BACK", "CAM_FRONT"}
     strat.view = View(layout=Layout.SINGLE)
     assert [im.camera for im in strat.images_for(s)] == ["CAM_FRONT"]
-    assert strat.condition() == {"layout": "single", "marker_grounding": False}
+    assert strat.condition() == {
+        "layout": "single", "marker_grounding": False, "vision": "full"}
 
 
 def test_answer_instruction_by_question_type():
