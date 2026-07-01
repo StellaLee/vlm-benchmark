@@ -12,6 +12,26 @@ the GLM/Gemini backends. Unlike GLM, DashScope's compatible mode returns token
 logprobs (choices[].logprobs.content[].logprob); we request them by default and
 expose their mean as avg_logprob, so the `direct` strategy gets a token-probability
 confidence signal (exp(avg_logprob)).
+
+Model ids (pass via --model; probed 2026-07-01 against the DashScope-compatible
+endpoint in QWEN_BASE_URL). The split that matters is *thinking vs non-thinking*,
+because only non-thinking vision models return usable token logprobs:
+
+  Non-thinking VL — return logprobs (use these for the token-logprob signal):
+    qwen-vl-max      strongest, default; the token-logprob calibration baseline
+    qwen-vl-plus     cheaper sibling
+    qwen3-vl-plus    newer gen, non-thinking, logprobs OK
+    qwen3-vl-flash   newest + cheapest with logprobs — best value drop-in for max
+
+  Thinking / omni VL — vision OK but logprobs come back null (verbal confidence
+  only, like GLM); fine for accuracy / verbal-confidence runs, NOT for --strategy
+  direct token-logprob calibration:
+    qwen3-vl-235b-a22b-thinking, qwen3-vl-32b-thinking, qwen3-vl-30b-a3b-thinking
+    qwen3-omni-flash (audio/video/realtime-oriented; no vision edge here)
+
+So: to preserve the logprob finding when qwen-vl-max quota runs out, switch to
+qwen3-vl-flash / qwen3-vl-plus (paid). The free-quota grants (thinking + omni) can
+only extend the accuracy / verbal-confidence comparisons.
 """
 
 import asyncio
