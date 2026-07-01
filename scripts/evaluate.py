@@ -5,6 +5,11 @@ Reports accuracy / ECE / AUROC overall and stratified by task_type — the O2-KR
 hypothesis is that VLMs are well-calibrated on scene-level understanding but poor
 on localized/fine-grained tasks.
 
+Abstention-aware: when a prediction declines ("I cannot determine ...") it is a
+refusal, not an error. Abstentions are reported as reduced *coverage* (a
+selective-prediction table) and kept out of accuracy / ECE / AUROC / the confusion
+matrix, which are computed over the *answered* items only.
+
 Example:
   python scripts/evaluate.py --curated data/curated/drive_v1.jsonl \
       --pred runs/mock_vc.jsonl
@@ -24,7 +29,8 @@ from avbench.eval.metrics import (
     precision_per_class,
     recall_per_class,
 )
-from avbench.eval.scorer import answer_label, get_scorer
+from avbench.eval.report import build_rows, coverage
+from avbench.eval.scorer import get_scorer
 from avbench.io_utils import read_jsonl
 
 # Show the confusion matrix / per-class recall only when answers are categorical with
@@ -49,76 +55,96 @@ def main() -> None:
     scorer = get_scorer(args.scorer, **kw)
 
     gold = {r["sample_id"]: r for r in read_jsonl(args.curated)}
-    rows = []  # (group, correct, confidence, gold_label, pred_label)
-    n_missing_conf = 0
-    n_err = 0
-    for p in read_jsonl(args.pred):
-        g = gold.get(p["sample_id"])
-        if g is None:
-            continue
-        if p.get("error"):
-            n_err += 1
-            continue
-        conf = p.get("verbal_confidence")
-        if conf is None:
-            n_missing_conf += 1
-            continue
-        correct = scorer.is_correct(p.get("answer"), g["answer"], g)
-        if args.by == "task":
-            group = g["task_type"]
-        else:
-            group = str((p.get("condition") or {}).get(args.by, "?"))
-        gold_label = answer_label(g["answer"], g["answer"])
-        pred_label = answer_label(p.get("answer"), g["answer"])
-        rows.append((group, correct, float(conf), gold_label, pred_label))
+    rows, n_err = build_rows(read_jsonl(args.pred), gold, scorer, by=args.by)
 
     if not rows:
-        print("No scorable rows (errors={}, missing-confidence={}).".format(n_err, n_missing_conf))
+        print("No scorable rows (errors={}).".format(n_err))
         return
 
-    by_task = defaultdict(lambda: ([], []))
-    allc, allf = [], []
-    for task, c, f, _gl, _pl in rows:
-        by_task[task][0].append(c)
-        by_task[task][1].append(f)
-        allc.append(c)
-        allf.append(f)
+    answered = [r for r in rows if not r.abstained]
+    n_abstained = len(rows) - len(answered)
+    n_missing_conf = sum(1 for r in answered if r.confidence is None)
 
-    print("\nCalibration (confidence vs correctness):")
-    print("{:<14} {:>6} {:>8} {:>8} {:>8}".format(args.by, "n", "acc", "ECE", "AUROC"))
+    if n_abstained:
+        _report_coverage(rows, args.by)
+
+    _report_calibration([r for r in answered if r.confidence is not None], args.by, args.bins)
+    _report_discrimination(answered, args.by)
+
+    notes = []
+    if n_err:
+        notes.append("errors={}".format(n_err))
+    if n_abstained:
+        notes.append("abstained={} (excluded from accuracy/calibration)".format(n_abstained))
+    if n_missing_conf:
+        notes.append("answered-without-confidence={} (in accuracy, not calibration)".format(n_missing_conf))
+    if notes:
+        print("\nnotes: " + ", ".join(notes))
+
+
+def _report_coverage(rows, by: str) -> None:
+    """Selective-prediction view: how often the model answered vs abstained, and its
+    accuracy on the answered slice. Only shown when some prediction abstained."""
+    groups = defaultdict(list)
+    for r in rows:
+        groups[r.group].append(r)
+    print("\nSelective prediction (abstention-aware):")
+    print("{:<14} {:>6} {:>9} {:>9} {:>9}".format(by, "n", "answered", "coverage", "sel_acc"))
+    print("-" * 50)
+
+    def line(name, group_rows):
+        ans = [r for r in group_rows if not r.abstained]
+        sel = accuracy([r.correct for r in ans]) if ans else float("nan")
+        print("{:<14} {:>6} {:>9} {:>9.3f} {:>9}".format(
+            name, len(group_rows), len(ans), coverage(group_rows), _fmt(sel)))
+
+    for g in sorted(groups):
+        line(g, groups[g])
+    print("-" * 50)
+    line("OVERALL", rows)
+
+
+def _report_calibration(rows, by: str, bins: int) -> None:
+    """Accuracy / ECE / AUROC over answered items that reported a confidence."""
+    print("\nCalibration (confidence vs correctness; answered items):")
+    print("{:<14} {:>6} {:>8} {:>8} {:>8}".format(by, "n", "acc", "ECE", "AUROC"))
     print("-" * 48)
-    for task in sorted(by_task):
-        c, f = by_task[task]
+    if not rows:
+        print("(no answered items with a confidence value)")
+        return
+
+    by_group = defaultdict(lambda: ([], []))
+    allc, allf = [], []
+    for r in rows:
+        by_group[r.group][0].append(r.correct)
+        by_group[r.group][1].append(r.confidence)
+        allc.append(r.correct)
+        allf.append(r.confidence)
+
+    for g in sorted(by_group):
+        c, f = by_group[g]
         print("{:<14} {:>6} {:>8.3f} {:>8.3f} {:>8}".format(
-            task, len(c), accuracy(c),
-            expected_calibration_error(c, f, args.bins),
-            _fmt(auroc(c, f)),
-        ))
+            g, len(c), accuracy(c), expected_calibration_error(c, f, bins), _fmt(auroc(c, f))))
     print("-" * 48)
     print("{:<14} {:>6} {:>8.3f} {:>8.3f} {:>8}".format(
         "OVERALL", len(allc), accuracy(allc),
-        expected_calibration_error(allc, allf, args.bins),
-        _fmt(auroc(allc, allf)),
-    ))
-
-    _report_discrimination(rows, args.by)
-
-    if n_err or n_missing_conf:
-        print("\nskipped: errors={}, missing-confidence={}".format(n_err, n_missing_conf))
+        expected_calibration_error(allc, allf, bins), _fmt(auroc(allc, allf))))
 
 
 def _report_discrimination(rows, by: str) -> None:
     """Confusion matrix + per-class recall/precision + balanced accuracy, per group
     and overall. Only for categorical answers (small label space) — accuracy is a
-    base-rate trap under class imbalance, this exposes positive-class recall."""
-    labels = sorted({gl for _, _, _, gl, _ in rows} | {pl for _, _, _, _, pl in rows})
+    base-rate trap under class imbalance, this exposes positive-class recall.
+    Consumes answered rows only; abstentions carry no (gold, pred) label pair."""
+    pairs_all = [(r.gold_label, r.pred_label) for r in rows]
+    labels = sorted({gl for gl, _ in pairs_all} | {pl for _, pl in pairs_all})
     if len(labels) > CATEGORICAL_MAX_LABELS:
         return  # open-ended free-form: confusion matrix is meaningless
 
-    groups = sorted({g for g, *_ in rows})
-    blocks = [(g, [(gl, pl) for grp, _, _, gl, pl in rows if grp == g]) for g in groups]
+    groups = sorted({r.group for r in rows})
+    blocks = [(g, [(r.gold_label, r.pred_label) for r in rows if r.group == g]) for g in groups]
     if len(groups) > 1:  # add an overall block when stratified
-        blocks.append(("OVERALL", [(gl, pl) for _, _, _, gl, pl in rows]))
+        blocks.append(("OVERALL", pairs_all))
 
     print("\nDiscrimination (categorical answers; '{}' groups):".format(by))
     for name, pairs in blocks:
